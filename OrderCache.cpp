@@ -102,6 +102,10 @@ static bool _compareQtyAscending(const Order & a, const Order & b){
   return (a.qty() < b.qty());
 }
 
+static bool _compareQtyDescending(const Order & a, const Order & b){
+  return (a.qty() > b.qty());
+}
+
 unsigned int OrderCache::getMatchingSizeForSecurity(const std::string& securityId) {
   (void) (securityId);
   std::vector<Order> buyOrders;
@@ -122,9 +126,9 @@ unsigned int OrderCache::getMatchingSizeForSecurity(const std::string& securityI
 
   //we sort all stuff enforcing parallelism for better perfomance in high loads
   //note that sorting with descending values will benefit bulkier trades
-  std::sort(std::execution::par, buyOrders.begin(), buyOrders.end(), _compareQtyAscending);
+  std::sort(std::execution::par, buyOrders.begin(), buyOrders.end(), _compareQtyDescending);
   auto sellIt = sellOrders.begin();
-  std::sort( std::execution::par, sellIt, sellOrders.end(), _compareQtyAscending);
+  std::sort( std::execution::par, sellIt, sellOrders.end(), _compareQtyDescending);
 
 // DEBUG -- prints relevant data
   if (1){
