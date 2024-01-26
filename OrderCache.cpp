@@ -23,6 +23,7 @@ void inline OrderCache::addOrder(Order order) {
   this->_mutex.unlock();
 }
 
+// TODO: segfault se orderId não existir
 void OrderCache::cancelOrder(const std::string& orderId) {
   this->_mutex.lock();
   if (VERBOSE)

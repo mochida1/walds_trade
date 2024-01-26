@@ -70,8 +70,8 @@ if [ "$argument" == "self" ]; then
 	echo -e "${YELLOW}BENCHMARKING ${GREEN}WITH${YELLOW} COMPILER OPTIMIZATIONS${NC}"
 	./Benchmark_O3
 
-	echo -e "${YELLOW}BENCHMARKING ${NC}WITH Ofast${YELLOW} COMPILER OPTIMIZATIONS${NC}"
-	./Benchmark_Ofast
+	# echo -e "${YELLOW}BENCHMARKING ${NC}WITH Ofast${YELLOW} COMPILER OPTIMIZATIONS${NC}"
+	# ./Benchmark_Ofast
 fi
 
 if [ "$argument" == "clean" ]; then
