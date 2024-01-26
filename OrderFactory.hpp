@@ -4,6 +4,8 @@
 
 #include "OrderCache.h"
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 class OrderFactory{
 public:
@@ -22,6 +24,9 @@ public:
 	void batchOrderGenerator(uint32_t ammount, OrderCache &cache);
 	void printSettings(void) const;
 	static void printOrder(const Order &order);
+	std::string createBenchmarkFile(uint32_t totalEntries, std::string fileName);
+	std::string createOrderAsString(void);
+	uint32_t batchOrderFromFile(std::string file, OrderCache &cache);
 	// these could've been templates, but since time is short, they aren't
 	static void printOrderContainer(std::vector<Order> &container);
 	static void printOrderContainer(std::unordered_map<std::string, Order> &container);

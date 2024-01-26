@@ -149,3 +149,52 @@ void OrderFactory::batchOrderGenerator(uint32_t ammount, OrderCache &cache){
 	}
 	return ;
 }
+
+// Order{"OrdId3", "SecId1", "Buy", 300, "User13", "Company2"}
+std::string OrderFactory::createOrderAsString(void){
+	Order orderToConvert(this->singleOrderGenerator());
+	std::string ret = orderToConvert.orderId() + " " + orderToConvert.securityId() + " " + orderToConvert.side() + " ";
+	ret += std::to_string(orderToConvert.qty()) + " " + orderToConvert.user() + " " + orderToConvert.company() + "\n";
+	return ret;
+}
+
+
+std::string OrderFactory::createBenchmarkFile(uint32_t totalEntries, std::string fileName){
+	OrderFactory OF;
+	std::ofstream outFile(fileName);
+	if (outFile.is_open()){
+		for (uint32_t i = 1; i <= totalEntries; i++){
+			outFile << this->createOrderAsString();
+		}
+		outFile.close();
+	}
+	else{
+		std::cerr << "Error: could not create file!" << std::endl;
+		return "";
+	}
+	return fileName;
+}
+
+uint32_t OrderFactory::batchOrderFromFile(std::string file, OrderCache &cache){
+	std::ifstream fileFS(file);
+	uint32_t linesRead = 0;
+	std::vector<std::string> tokens;
+	tokens.reserve(6);
+	if (fileFS.is_open()){
+		std::string line;
+		while (std::getline(fileFS, line)){
+			std::istringstream iss(line);
+			std::string token;
+			while (iss >> token){
+				tokens.push_back(token);
+			}
+			cache.addOrder(Order{tokens[0], tokens[1], tokens[2], (unsigned int)(std::stoul(tokens[3])), tokens[4], tokens[5]});
+			tokens.clear();
+		}
+		fileFS.close();
+	}
+	else{
+		std::cerr << "ERROR: Could no open file: " << file << std::endl;
+	}
+	return linesRead;
+}

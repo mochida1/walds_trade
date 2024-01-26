@@ -55,6 +55,7 @@ void OrderCache::cancelOrdersForUser(const std::string& user) {
 }
 
 // remove all orders in the cache for this security with qty >= minQty
+// MELHORAR USO DE MEMORIA!!!
 void OrderCache::cancelOrdersForSecIdWithMinimumQty(const std::string& securityId, unsigned int minQty) {
   this->_mutex.lock();
   for (auto it = this->_orders.begin(); it != this->_orders.end();){
@@ -186,11 +187,12 @@ void OrderCache::assertOrderNumbers(void){
   lTotalOrders = (uint32_t)(this->_orders.size());
   assert(lTotalOrders == this->_totalOrders);
 }
-
+// este cara está tomando segfault quando lida com 
 std::vector<Order> OrderCache::getAllOrders() const {
   if (VERBOSE)
     std::cout << "getAllOrders()" << std::endl;
   std::vector<Order> ret;
+  ret.reserve(this->_totalOrders);
   this->_mutex.lock();
   for (const auto& entry : this->_orders) {
     ret.push_back(entry.second);

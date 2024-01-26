@@ -64,8 +64,8 @@ if [ "$argument" == "self" ]; then
 	g++ -Ofast --std=c++17 benchmark_main.cpp Benchmark.cpp OrderFactory.cpp OrderCache.cpp -o Benchmark_Ofast -pthread
 	echo -e "${YELLOW}Done!{NC}"
 
-	echo -e "${YELLOW}BENCHMARKING ${RED}WITHOUT${YELLOW} COMPILER OPTIMIZATIONS${NC}"
-	./Benchmark
+	# echo -e "${YELLOW}BENCHMARKING ${RED}WITHOUT${YELLOW} COMPILER OPTIMIZATIONS${NC}"
+	# ./Benchmark
 
 	echo -e "${YELLOW}BENCHMARKING ${GREEN}WITH${YELLOW} COMPILER OPTIMIZATIONS${NC}"
 	./Benchmark_O3
