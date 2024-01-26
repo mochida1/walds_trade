@@ -14,7 +14,8 @@ OrderCache::~OrderCache(void){
   return ;
 }
 
-void OrderCache::addOrder(Order order) {
+// we shave off a few nanosecs by inlining the function
+void inline OrderCache::addOrder(Order order) {
   this->_mutex.lock();
   this->_orders.emplace(order.orderId(), order);
   this->_totalOrders++;
@@ -67,61 +68,33 @@ void OrderCache::cancelOrdersForSecIdWithMinimumQty(const std::string& securityI
   this->_mutex.unlock();
 }
 
-// - Order matching rules for getMatchingSizeForSecurity()
-//   - Your implementation of getMatchingSizeForSecurity() should give the total qty that can match for a security id
-//   - Can only match orders with the same security id
-//   - Can only match a Buy order with a Sell order
-//   - Buy order can match against multiple Sell orders (and vice versa)
-//     - eg a security id "ABCD" has
-//       Buy  order with qty 10000
-//       Sell order with qty  2000
-//       Sell order with qty  1000
-//     - security id "ABCD" has a total match of 3000. The Buy order's qty is big
-//       enough to match against both Sell orders and still has 7000 remaining
-//   - Any order quantity already allocated to a match cannot be reused as a match
-//     against a different order (eg the qty 3000 matched above for security id
-//     "ABCD" example)
-//   - Some orders may not match entirely or at all
-//   - Users in the same company cannot match against each other
-/*
-  std::string orderId() const    { return m_orderId; }
-  std::string securityId() const { return m_securityId; }
-  std::string side() const       { return m_side; }
-  std::string user() const       { return m_user; }
-  std::string company() const    { return m_company; }
-  unsigned int qty() const       { return m_qty; }
-*/
-//  OrdId8 SecId2 Sell 5000 User8 CompanyE
-
-// criar uma classe que herde de Order, com um novo membro bool para saber se a order já teve match.
-// pegar todas Order com securityId's iguais ao parâmetro e dividí-las em dois grupos: uma de buy e outra de sell
-// fazer o sort delas por qty
-// pensar num jeito de otimizar os matches
-
-static bool _compareQtyAscending(const Order & a, const Order & b){
+static inline bool _compareQtyAscending(const Order & a, const Order & b){
   return (a.qty() < b.qty());
 }
 
-static bool _compareQtyDescending(const Order & a, const Order & b){
+static inline bool _compareQtyDescending(const Order & a, const Order & b){
   return (a.qty() > b.qty());
 }
 
 unsigned int OrderCache::getMatchingSizeForSecurity(const std::string& securityId) {
   (void) (securityId);
-  std::vector<Order> buyOrders;
-  std::vector<Order> sellOrders;
+  std::vector<OrderToMatch> buyOrders;
+  std::vector<OrderToMatch> sellOrders;
   // here we preallocate the necessary memmory to improve populating perfomance
   buyOrders.reserve(this->_totalBuyOrders);
   sellOrders.reserve(this->_totalSellOrders);
   unsigned int ret = 0;
   this->_mutex.lock();
 
-  std::for_each(std::execution::par, this->_orders.begin(), this->_orders.end(), [this, &buyOrders, &sellOrders](std::pair<const std::string, Order>& it){
-    if (it.second.side().compare(this->_buyLookUpTerm) == 0){
-      buyOrders.push_back(it.second);
+  std::for_each(std::execution::par, this->_orders.begin(), this->_orders.end(), [this, &buyOrders, &sellOrders, &securityId](std::pair<const std::string, Order>& it){
+    if (it.second.securityId().compare(securityId) != 0){
+      ;
+    }
+    else if (it.second.side().compare(this->_buyLookUpTerm) == 0){
+      buyOrders.push_back(OrderToMatch(it.second));
     }
     else
-      sellOrders.push_back(it.second);
+      sellOrders.push_back(OrderToMatch(it.second));
   });
 
   //we sort all stuff enforcing parallelism for better perfomance in high loads
@@ -131,7 +104,7 @@ unsigned int OrderCache::getMatchingSizeForSecurity(const std::string& securityI
   std::sort( std::execution::par, sellIt, sellOrders.end(), _compareQtyDescending);
 
 // DEBUG -- prints relevant data
-  if (1){
+  if (0){
     uint32_t size = 0;
     std::cout << "-----------Printing all SORTED BUY orders------------" << std::endl;
     for (const auto& buyIt : buyOrders) {
@@ -151,16 +124,56 @@ unsigned int OrderCache::getMatchingSizeForSecurity(const std::string& securityI
   }
 
 
-//ATENCAO!!! PRECISAREMOS MELHORAR ESTE ALGORITMO
-// verificamos os melhores valores de venda para serem adaptados em qty menores
-// existe um caveat aqui: seria necessário verificar os melhores matches para conseguir o volume otimo de qty para matches
-  for (const auto& buyIt : buyOrders) {
-      if (buyIt.company().compare(sellIt->company()) != 0 && buyIt.user().compare(sellIt->user()) != 0 && buyIt.qty() <= sellIt->qty()){
-        //fazemos o match
-        //se o match deu bom, damos erase em ambos os elementos para que não sejam mais usados.
-        //avançamos sellIt, uma vez que o de buyIt será avançado automaticamente.
+  //ATENCAO!!! PRECISAREMOS MELHORAR ESTE ALGORITMO
+  if (buyOrders.size() == 0 || sellOrders.size() == 0){
+    this->_mutex.unlock();
+    return 0;
+  }
+  auto buyIt = buyOrders.begin();
+  while (buyIt != buyOrders.end()){
+      while (sellIt != sellOrders.end()){
+        if ( (buyIt->company().compare(sellIt->company()) != 0) && buyIt->getQty() && sellIt->getQty()){
+          if (sellIt->getQty() >= buyIt->getQty()){
+            sellIt->setQty(sellIt->getQty() - buyIt->getQty());
+            ret += buyIt->getQty();
+            buyIt->setQty(0);
+            break;
+          }
+          else{
+            buyIt->setQty(buyIt->getQty() - sellIt->getQty());
+            ret += sellIt->getQty();
+            sellOrders.erase(sellIt);
+          }
+        }
+        else{
+          sellIt++;
+        }
       }
+      sellIt = sellOrders.begin();
+      buyIt++;
     }
+
+  // std::for_each(std::execution::par, buyOrders.begin(), buyOrders.end(), [&sellOrders, &securityId, &ret](std::vector<OrderToMatch>::iterator fBuyIt){
+  //   sellIt = sellOrders.begin();
+  //   while (sellIt != sellOrders.end()){
+  //     if ( (buyIt->company().compare(sellIt->company()) != 0) && fBuyIt->getQty() && sellIt->getQty()){
+  //       if (sellIt->getQty() >= fBuyIt->getQty()){
+  //         sellIt->setQty(sellIt->getQty() - fBuyIt->getQty());
+  //         ret += fBuyIt->getQty();
+  //         fBuyIt->setQty(0);
+  //         break;
+  //       }
+  //       else{
+  //         fBuyIt->setQty(fBuyIt->getQty() - sellIt->getQty());
+  //         ret += sellIt->getQty();
+  //         sellIt->setQty(0);
+  //       }
+  //     }
+  //     else{
+  //       sellIt++;
+  //     }
+  //   }
+  // });
 
   this->_mutex.unlock();
   return ret;

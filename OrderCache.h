@@ -52,6 +52,32 @@ class Order
 
 };
 
+class OrderToMatch : public Order
+{
+public:
+	OrderToMatch(
+        const std::string& ordId,
+        const std::string& secId,
+        const std::string& side,
+        const unsigned int qty,
+        const std::string& user,
+        const std::string& company,
+        unsigned int _qty,
+		bool _isMatch)
+        : Order(ordId, secId, side, qty, user, company),
+          _qty(qty),
+		  _isMatch(false) {}
+	OrderToMatch(const Order& order)
+        : Order(order), _qty(order.qty()) {this->_isMatch = false;}
+	void setQty(unsigned int newQty) {this->_qty = newQty;}
+	unsigned int getQty(void) {return this->_qty;}
+	bool isMatch(void){return this->_isMatch;}
+	void setIsMatch(void){this->_isMatch = true;}
+private:
+	unsigned int _qty;
+	bool _isMatch;
+};
+
 class OrderCacheInterface
 {
 
