@@ -214,6 +214,7 @@ int main(void){
 	// std::cout << "crated file: " << file << std::endl;
 	/* -------------------------------------------------------------------*/
 	std::string file("bmFile.csv");
+	std::cout << "starting bmGetMatchingSizeForSecurity... this might take a while" << std::endl;
 	result = bmGetMatchingSizeForSecurity(file);
 
 	std::cout << "TOTAL time spent on OrderCache methods: " << result << std::endl;
